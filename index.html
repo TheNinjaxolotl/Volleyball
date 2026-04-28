@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NC Volleyball Finder</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --sand: #f5ede0;
+    --sand-mid: #e8d8c4;
+    --sand-dark: #c9b49a;
+    --court-blue: #1a4fa0;
+    --court-blue-light: #2563d6;
+    --court-blue-pale: #dbeafe;
+    --teal: #0f766e;
+    --teal-pale: #ccfbf1;
+    --pink: #9d174d;
+    --pink-pale: #fce7f3;
+    --amber: #b45309;
+    --amber-pale: #fef3c7;
+    --text: #1a1a2e;
+    --text-mid: #4a4a68;
+    --text-muted: #7c7c9a;
+    --white: #ffffff;
+    --border: rgba(26,26,46,0.12);
+    --border-strong: rgba(26,26,46,0.22);
+    --shadow: 0 2px 12px rgba(26,26,46,0.10);
+    --shadow-lg: 0 8px 32px rgba(26,26,46,0.16);
+  }
+
+  html, body { height: 100%; font-family: 'DM Sans', sans-serif; background: var(--sand); color: var(--text); }
+
+  /* ── LAYOUT ── */
+  .app { display: flex; flex-direction: column; height: 100vh; }
+
+  /* ── TOPBAR ── */
+  .topbar {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 16px; background: var(--white);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0; z-index: 20; box-shadow: var(--shadow);
+  }
+  .logo { display: flex; align-items: center; gap: 8px; text-decoration: none; }
+  .logo-icon { width: 32px; height: 32px; background: var(--court-blue); border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .logo-icon svg { width: 18px; height: 18px; }
+  .logo-text { font-family: 'Space Grotesk', sans-serif; font-size: 17px; font-weight: 700; color: var(--court-blue); white-space: nowrap; }
+  .logo-text span { color: var(--teal); }
+
+  .search-wrap { flex: 1; display: flex; align-items: center; gap: 8px; max-width: 460px; background: var(--sand); border: 1px solid var(--border-strong); border-radius: 10px; padding: 7px 12px; }
+  .search-wrap svg { flex-shrink: 0; color: var(--text-muted); }
+  .search-wrap input { background: none; border: none; outline: none; font-size: 14px; font-family: 'DM Sans', sans-serif; color: var(--text); width: 100%; }
+  .search-wrap input::placeholder { color: var(--text-muted); }
+
+  .loc-btn {
+    display: flex; align-items: center; gap: 6px;
+    padding: 7px 13px; font-size: 13px; font-family: 'DM Sans', sans-serif;
+    font-weight: 500; border: 1px solid var(--border-strong);
+    border-radius: 10px; background: var(--white); color: var(--text-mid);
+    cursor: pointer; transition: all 0.15s; white-space: nowrap;
+  }
+  .loc-btn:hover { background: var(--court-blue-pale); border-color: var(--court-blue); color: var(--court-blue); }
+  .loc-btn.active { background: var(--court-blue-pale); border-color: var(--court-blue); color: var(--court-blue); }
+
+  /* ── MAIN ── */
+  .main { display: flex; flex: 1; overflow: hidden; }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width: 280px; flex-shrink: 0; display: flex; flex-direction: column;
+    background: var(--white); border-right: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .sidebar-filters { overflow-y: auto; flex: 1; }
+  .sidebar-filters::-webkit-scrollbar { width: 4px; }
+  .sidebar-filters::-webkit-scrollbar-thumb { background: var(--sand-dark); border-radius: 2px; }
+
+  .filter-section { padding: 12px 14px; border-bottom: 1px solid var(--border); }
+  .filter-label {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px;
+  }
+  .chip-group { display: flex; flex-wrap: wrap; gap: 5px; }
+  .chip {
+    padding: 4px 10px; font-size: 12px; font-family: 'DM Sans', sans-serif;
+    font-weight: 500; border: 1px solid var(--border-strong);
+    border-radius: 20px; cursor: pointer; color: var(--text-mid);
+    background: var(--white); transition: all 0.12s; user-select: none;
+  }
+  .chip:hover:not(.active) { background: var(--sand); border-color: var(--court-blue); color: var(--court-blue); }
+  .chip.active { background: var(--court-blue); border-color: var(--court-blue); color: var(--white); }
+
+  .price-row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted); }
+  .price-row input[type=range] {
+    flex: 1; height: 4px; -webkit-appearance: none; appearance: none;
+    background: var(--sand-mid); border-radius: 2px; outline: none; cursor: pointer;
+  }
+  .price-row input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 16px; height: 16px;
+    border-radius: 50%; background: var(--court-blue); border: 2px solid var(--white);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+  }
+  #price-val { font-weight: 600; color: var(--court-blue); min-width: 42px; text-align: right; }
+
+  /* results */
+  .results-header {
+    padding: 10px 14px; font-size: 12px; font-weight: 600;
+    color: var(--text-muted); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 6px;
+    background: var(--sand); flex-shrink: 0;
+  }
+  .results-count {
+    background: var(--court-blue); color: var(--white);
+    padding: 1px 7px; border-radius: 10px; font-size: 11px;
+  }
+  .results-list { overflow-y: auto; flex: 1; }
+  .results-list::-webkit-scrollbar { width: 4px; }
+  .results-list::-webkit-scrollbar-thumb { background: var(--sand-dark); border-radius: 2px; }
+
+  .result-item {
+    padding: 11px 14px; border-bottom: 1px solid var(--border);
+    cursor: pointer; transition: background 0.1s; border-left: 3px solid transparent;
+  }
+  .result-item:hover { background: var(--sand); }
+  .result-item.selected { background: var(--court-blue-pale); border-left-color: var(--court-blue); }
+  .ri-name { font-size: 13px; font-weight: 600; margin-bottom: 4px; color: var(--text); line-height: 1.3; }
+  .ri-city { font-size: 11px; color: var(--text-muted); margin-bottom: 5px; }
+  .ri-badges { display: flex; flex-wrap: wrap; gap: 4px; }
+
+  .badge {
+    padding: 2px 7px; border-radius: 10px; font-size: 10px; font-weight: 600;
+    display: inline-flex; align-items: center; gap: 3px;
+  }
+  .badge-free { background: var(--teal-pale); color: var(--teal); }
+  .badge-paid { background: var(--amber-pale); color: var(--amber); }
+  .badge-coed { background: var(--court-blue-pale); color: var(--court-blue); }
+  .badge-f { background: var(--pink-pale); color: var(--pink); }
+  .badge-m { background: #e0f2fe; color: #0369a1; }
+  .badge-public { background: #f0fdf4; color: #15803d; }
+  .badge-private { background: #faf5ff; color: #7e22ce; }
+
+  .no-results { padding: 24px 14px; text-align: center; color: var(--text-muted); font-size: 13px; }
+  .no-results svg { display: block; margin: 0 auto 8px; opacity: 0.35; }
+
+  /* ── MAP AREA ── */
+  .map-area { flex: 1; position: relative; overflow: hidden; background: #d4e4f0; }
+
+  /* Leaflet overrides */
+  #map { width: 100%; height: 100%; }
+  .leaflet-popup-content-wrapper { border-radius: 12px !important; box-shadow: var(--shadow-lg) !important; border: 1px solid var(--border) !important; padding: 0 !important; overflow: hidden; }
+  .leaflet-popup-content { margin: 0 !important; width: 220px !important; }
+  .leaflet-popup-tip-container { display: none; }
+  .leaflet-popup-close-button { top: 8px !important; right: 8px !important; font-size: 16px !important; color: var(--text-muted) !important; }
+
+  .popup-inner { padding: 14px 16px; font-family: 'DM Sans', sans-serif; }
+  .popup-name { font-family: 'Space Grotesk', sans-serif; font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 3px; }
+  .popup-city { font-size: 11px; color: var(--text-muted); margin-bottom: 9px; }
+  .popup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 9px; }
+  .popup-cell { background: var(--sand); border-radius: 6px; padding: 5px 8px; }
+  .popup-cell-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); font-weight: 600; }
+  .popup-cell-val { font-size: 12px; font-weight: 600; color: var(--text); margin-top: 1px; }
+  .popup-desc { font-size: 11px; color: var(--text-mid); line-height: 1.5; border-top: 1px solid var(--border); padding-top: 8px; }
+
+  .map-legend {
+    position: absolute; bottom: 16px; right: 16px; z-index: 1000;
+    background: var(--white); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 14px; font-size: 11px;
+    box-shadow: var(--shadow); min-width: 130px;
+  }
+  .map-legend-title { font-weight: 600; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 7px; }
+  .legend-row { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; color: var(--text-mid); }
+  .legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; border: 2px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+</style>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+</head>
+<body>
+<div class="app">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <a class="logo" href="#">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="12" r="9" stroke="white" stroke-width="1.8"/>
+          <path d="M3.5 9h17M3.5 15h17M12 3c-2.5 3-4 5.5-4 9s1.5 6 4 9M12 3c2.5 3 4 5.5 4 9s-1.5 6-4 9" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <span class="logo-text">NC <span>Volleyball</span> Finder</span>
+    </a>
+    <div class="search-wrap">
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+        <circle cx="6.5" cy="6.5" r="5" stroke="currentColor" stroke-width="1.6"/>
+        <path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      </svg>
+      <input id="search-input" type="text" placeholder="Search city, zip, or location name…">
+    </div>
+    <button class="loc-btn" id="use-loc-btn">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+        <circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M8 1v2.5M8 12.5V15M1 8h2.5M12.5 8H15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      Use my location
+    </button>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="sidebar-filters">
+
+        <div class="filter-section">
+          <div class="filter-label">Gender</div>
+          <div class="chip-group">
+            <div class="chip active" data-filter="gender" data-val="all">All</div>
+            <div class="chip" data-filter="gender" data-val="coed">Coed</div>
+            <div class="chip" data-filter="gender" data-val="f">Women only</div>
+            <div class="chip" data-filter="gender" data-val="m">Men only</div>
+          </div>
+        </div>
+
+        <div class="filter-section">
+          <div class="filter-label">Age group</div>
+          <div class="chip-group">
+            <div class="chip active" data-filter="age" data-val="all">All ages</div>
+            <div class="chip" data-filter="age" data-val="youth">Youth / student</div>
+            <div class="chip" data-filter="age" data-val="adult">Adult 18+</div>
+          </div>
+        </div>
+
+        <div class="filter-section">
+          <div class="filter-label">Intensity</div>
+          <div class="chip-group">
+            <div class="chip active" data-filter="intensity" data-val="all">All levels</div>
+            <div class="chip" data-filter="intensity" data-val="learning">Learning</div>
+            <div class="chip" data-filter="intensity" data-val="technique">Technique</div>
+            <div class="chip" data-filter="intensity" data-val="casual">Casual games</div>
+            <div class="chip" data-filter="intensity" data-val="competitive">Competitive</div>
+          </div>
+        </div>
+
+        <div class="filter-section">
+          <div class="filter-label">Group type</div>
+          <div class="chip-group">
+            <div class="chip active" data-filter="group" data-val="all">All</div>
+            <div class="chip" data-filter="group" data-val="public">Public</div>
+            <div class="chip" data-filter="group" data-val="private">Private</div>
+          </div>
+        </div>
+
+        <div class="filter-section">
+          <div class="filter-label">Max price per session</div>
+          <div class="price-row">
+            <span>$0</span>
+            <input type="range" id="price-range" min="0" max="100" value="100" step="5">
+            <span id="price-val">$100+</span>
+          </div>
+        </div>
+
+        <div class="filter-section">
+          <div class="filter-label">Date</div>
+          <div class="chip-group">
+            <div class="chip active" data-filter="date" data-val="all">Any date</div>
+            <div class="chip" data-filter="date" data-val="today">Today</div>
+            <div class="chip" data-filter="date" data-val="week">This week</div>
+            <div class="chip" data-filter="date" data-val="weekend">Weekend</div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="results-header">
+        Courts found <span class="results-count" id="results-count">0</span>
+      </div>
+      <div class="results-list" id="results-list"></div>
+    </div>
+
+    <!-- MAP -->
+    <div class="map-area">
+      <div id="map"></div>
+      <div class="map-legend">
+        <div class="map-legend-title">Court price</div>
+        <div class="legend-row"><div class="legend-dot" style="background:#0f766e"></div> Free</div>
+        <div class="legend-row"><div class="legend-dot" style="background:#1a4fa0"></div> Paid</div>
+        <div class="legend-row"><div class="legend-dot" style="background:#ccc"></div> Filtered out</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ── DATA ──
+const courts = [
+  { id:1,  name:"Charlotte Sports Club — Beach Courts",  city:"Charlotte",      lat:35.205, lng:-80.840, price:12, gender:"coed", age:"adult", intensity:"casual",      group:"public",  date:"today",   desc:"4 outdoor sand courts. Drop-in every evening weekdays & weekends." },
+  { id:2,  name:"Freedom Park Open Courts",              city:"Charlotte",      lat:35.198, lng:-80.843, price:0,  gender:"coed", age:"all",   intensity:"casual",      group:"public",  date:"today",   desc:"Free public courts. First-come first-served. Lights on till 10pm." },
+  { id:3,  name:"Matthews YMCA — Volleyball Nights",    city:"Matthews",       lat:35.118, lng:-80.720, price:8,  gender:"coed", age:"adult", intensity:"technique",   group:"public",  date:"week",    desc:"Weekly beginner clinics + open gym. Thursdays 6–9pm." },
+  { id:4,  name:"Queen City Sand League",               city:"Charlotte",      lat:35.230, lng:-80.855, price:25, gender:"coed", age:"adult", intensity:"competitive", group:"private", date:"weekend", desc:"Registered league play. Teams of 2–6. Sign-up required." },
+  { id:5,  name:"Greensboro Coliseum Complex",          city:"Greensboro",     lat:36.070, lng:-79.820, price:10, gender:"coed", age:"all",   intensity:"casual",      group:"public",  date:"week",    desc:"Indoor and outdoor courts open weekdays 8am–9pm." },
+  { id:6,  name:"Triad Women's VB Club",                city:"Greensboro",     lat:36.080, lng:-79.810, price:15, gender:"f",    age:"adult", intensity:"technique",   group:"private", date:"weekend", desc:"Women-only drills and scrimmage sessions. All skill levels." },
+  { id:7,  name:"Durham Central Park Courts",           city:"Durham",         lat:35.985, lng:-78.905, price:0,  gender:"coed", age:"all",   intensity:"casual",      group:"public",  date:"today",   desc:"Free public sand courts. Open sunrise–sunset daily." },
+  { id:8,  name:"Triangle VB Academy",                  city:"Durham",         lat:35.990, lng:-78.920, price:35, gender:"coed", age:"youth", intensity:"learning",    group:"private", date:"week",    desc:"Youth coaching ages 10–18. Small-group sessions with certified coaches." },
+  { id:9,  name:"Raleigh Parks — Lake Lynn Courts",     city:"Raleigh",        lat:35.870, lng:-78.700, price:0,  gender:"coed", age:"all",   intensity:"casual",      group:"public",  date:"today",   desc:"4 public courts, lighted for evening play. Open daily." },
+  { id:10, name:"NC State Rec Volleyball",              city:"Raleigh",        lat:35.785, lng:-78.680, price:5,  gender:"coed", age:"youth", intensity:"technique",   group:"public",  date:"week",    desc:"Student ID required. Daily open gym. Multiple courts available." },
+  { id:11, name:"Raleigh Men's Open League",            city:"Raleigh",        lat:35.800, lng:-78.650, price:20, gender:"m",    age:"adult", intensity:"competitive", group:"private", date:"weekend", desc:"Men's 6v6 competitive sessions. Online sign-up required." },
+  { id:12, name:"Wilmington Beach Volleyball",          city:"Wilmington",     lat:34.235, lng:-77.945, price:0,  gender:"coed", age:"all",   intensity:"casual",      group:"public",  date:"today",   desc:"Public beach courts on Wrightsville Beach. Ocean breeze included." },
+  { id:13, name:"Asheville Rec Center Courts",          city:"Asheville",      lat:35.575, lng:-82.555, price:6,  gender:"coed", age:"all",   intensity:"casual",      group:"public",  date:"week",    desc:"Indoor gym courts. Beginner-friendly drop-in evenings." },
+  { id:14, name:"Blue Ridge Women's VB",                city:"Asheville",      lat:35.590, lng:-82.540, price:12, gender:"f",    age:"adult", intensity:"learning",    group:"private", date:"weekend", desc:"Women's learning circle. Relaxed pace, all skill levels welcome." },
+  { id:15, name:"Outer Banks Summer Series",            city:"Kill Devil Hills",lat:36.030, lng:-75.675, price:0,  gender:"coed", age:"all",   intensity:"casual",      group:"public",  date:"weekend", desc:"Beachside round-robin on the oceanfront. Summer series." },
+  { id:16, name:"Chapel Hill Beach League",             city:"Chapel Hill",    lat:35.920, lng:-79.055, price:18, gender:"coed", age:"adult", intensity:"competitive", group:"private", date:"week",    desc:"4v4 and 6v6 leagues. Season registration required." },
+  { id:17, name:"Fayetteville Spike Zone",              city:"Fayetteville",   lat:35.050, lng:-78.880, price:8,  gender:"coed", age:"all",   intensity:"casual",      group:"public",  date:"today",   desc:"Indoor facility with 4 courts. Walk-ins welcome most evenings." },
+  { id:18, name:"High Point University Rec Courts",     city:"High Point",     lat:35.955, lng:-80.005, price:4,  gender:"coed", age:"youth", intensity:"technique",   group:"public",  date:"week",    desc:"University rec facility. Open to community members weekends." },
+];
+
+// ── STATE ──
+const filters = { gender:"all", age:"all", intensity:"all", group:"all", date:"all", price:100 };
+let selectedId = null;
+let searchQuery = "";
+let markers = {};
+let map;
+
+// ── MAP INIT ──
+map = L.map('map', { zoomControl: true }).setView([35.5, -79.4], 7);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  attribution: '© OpenStreetMap contributors © CARTO',
+  subdomains: 'abcd', maxZoom: 19
+}).addTo(map);
+
+// ── HELPERS ──
+function matchFilter(c) {
+  if (filters.gender !== "all" && c.gender !== filters.gender) return false;
+  if (filters.age !== "all" && c.age !== "all" && c.age !== filters.age) return false;
+  if (filters.intensity !== "all" && c.intensity !== filters.intensity) return false;
+  if (filters.group !== "all" && c.group !== filters.group) return false;
+  if (filters.date !== "all" && c.date !== filters.date) return false;
+  if (c.price > filters.price) return false;
+  if (searchQuery) {
+    const q = searchQuery.toLowerCase();
+    if (!c.name.toLowerCase().includes(q) && !c.city.toLowerCase().includes(q)) return false;
+  }
+  return true;
+}
+
+function genderLabel(g) {
+  return { coed:"Coed", f:"Women only", m:"Men only" }[g] || g;
+}
+function ageLabel(a) {
+  return { all:"All ages", youth:"Youth/student", adult:"Adult 18+" }[a] || a;
+}
+function intensityLabel(i) {
+  return { learning:"Learning", technique:"Technique", casual:"Casual", competitive:"Competitive" }[i] || i;
+}
+function groupLabel(g) {
+  return g === "public" ? "Public" : "Private";
+}
+
+function genderBadge(g) {
+  const cls = g === "coed" ? "badge-coed" : g === "f" ? "badge-f" : "badge-m";
+  return `<span class="badge ${cls}">${genderLabel(g)}</span>`;
+}
+function priceBadge(p) {
+  return p === 0
+    ? `<span class="badge badge-free">Free</span>`
+    : `<span class="badge badge-paid">$${p}/session</span>`;
+}
+function groupBadge(g) {
+  return `<span class="badge ${g === 'public' ? 'badge-public' : 'badge-private'}">${groupLabel(g)}</span>`;
+}
+
+function makeIcon(active, isSelected, isFree) {
+  const color = !active ? '#bbb' : isSelected ? '#0f3d8c' : isFree ? '#0f766e' : '#1a4fa0';
+  const ring = isSelected ? '#0f3d8c' : 'white';
+  const size = isSelected ? 22 : 18;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="10" fill="${color}" stroke="${ring}" stroke-width="2.5"/>
+  </svg>`;
+  return L.divIcon({
+    className: '',
+    html: svg,
+    iconSize: [size, size],
+    iconAnchor: [size/2, size/2],
+    popupAnchor: [0, -size/2 - 2]
+  });
+}
+
+function popupHtml(c) {
+  return `<div class="popup-inner">
+    <div class="popup-name">${c.name}</div>
+    <div class="popup-city">${c.city}, NC</div>
+    <div class="popup-grid">
+      <div class="popup-cell">
+        <div class="popup-cell-label">Price</div>
+        <div class="popup-cell-val">${c.price === 0 ? 'Free' : '$' + c.price}</div>
+      </div>
+      <div class="popup-cell">
+        <div class="popup-cell-label">Gender</div>
+        <div class="popup-cell-val">${genderLabel(c.gender)}</div>
+      </div>
+      <div class="popup-cell">
+        <div class="popup-cell-label">Age</div>
+        <div class="popup-cell-val">${ageLabel(c.age)}</div>
+      </div>
+      <div class="popup-cell">
+        <div class="popup-cell-label">Type</div>
+        <div class="popup-cell-val">${groupLabel(c.group)}</div>
+      </div>
+      <div class="popup-cell" style="grid-column:1/-1">
+        <div class="popup-cell-label">Intensity</div>
+        <div class="popup-cell-val">${intensityLabel(c.intensity)}</div>
+      </div>
+    </div>
+    <div class="popup-desc">${c.desc}</div>
+  </div>`;
+}
+
+// ── RENDER ──
+function render() {
+  const visible = courts.filter(matchFilter);
+  const visIds = new Set(visible.map(c => c.id));
+
+  // update results list
+  const list = document.getElementById("results-list");
+  document.getElementById("results-count").textContent = visible.length;
+  list.innerHTML = "";
+
+  if (visible.length === 0) {
+    list.innerHTML = `<div class="no-results">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M8 12h8M12 8v8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity="0.4"/>
+      </svg>
+      No courts match your filters.<br>Try broadening your search.
+    </div>`;
+  } else {
+    visible.forEach(c => {
+      const div = document.createElement("div");
+      div.className = "result-item" + (selectedId === c.id ? " selected" : "");
+      div.innerHTML = `
+        <div class="ri-name">${c.name}</div>
+        <div class="ri-city">${c.city}, NC</div>
+        <div class="ri-badges">${priceBadge(c.price)} ${genderBadge(c.gender)} ${groupBadge(c.group)}</div>
+      `;
+      div.addEventListener("click", () => selectCourt(c.id, true));
+      list.appendChild(div);
+    });
+  }
+
+  // update markers
+  courts.forEach(c => {
+    const active = visIds.has(c.id);
+    const isSelected = selectedId === c.id;
+    const marker = markers[c.id];
+    if (marker) {
+      marker.setIcon(makeIcon(active, isSelected, c.price === 0));
+      marker.setZIndexOffset(isSelected ? 1000 : active ? 0 : -500);
+    }
+  });
+}
+
+// ── SELECT ──
+function selectCourt(id, panTo) {
+  if (selectedId === id) {
+    selectedId = null;
+    map.closePopup();
+  } else {
+    selectedId = id;
+    const c = courts.find(x => x.id === id);
+    if (c && panTo) {
+      map.setView([c.lat, c.lng], Math.max(map.getZoom(), 11), { animate: true });
+    }
+    if (markers[id]) {
+      markers[id].openPopup();
+    }
+  }
+  render();
+}
+
+// ── CREATE MARKERS ──
+courts.forEach(c => {
+  const marker = L.marker([c.lat, c.lng], { icon: makeIcon(true, false, c.price === 0) }).addTo(map);
+  marker.bindPopup(popupHtml(c), { maxWidth: 230, minWidth: 220 });
+  marker.on("click", () => selectCourt(c.id, false));
+  marker.on("popupclose", () => {
+    if (selectedId === c.id) { selectedId = null; render(); }
+  });
+  markers[c.id] = marker;
+});
+
+// ── FILTERS ──
+document.querySelectorAll(".chip").forEach(chip => {
+  chip.addEventListener("click", () => {
+    const f = chip.dataset.filter, v = chip.dataset.val;
+    document.querySelectorAll(`.chip[data-filter="${f}"]`).forEach(c => c.classList.remove("active"));
+    chip.classList.add("active");
+    filters[f] = v;
+    render();
+  });
+});
+
+document.getElementById("price-range").addEventListener("input", function() {
+  const v = parseInt(this.value);
+  filters.price = v;
+  document.getElementById("price-val").textContent = v >= 100 ? "$100+" : "$" + v;
+  render();
+});
+
+document.getElementById("search-input").addEventListener("input", function() {
+  searchQuery = this.value.trim();
+  render();
+});
+
+// ── LOCATION ──
+document.getElementById("use-loc-btn").addEventListener("click", function() {
+  if (!navigator.geolocation) {
+    alert("Geolocation is not supported by your browser.");
+    return;
+  }
+  this.textContent = "Detecting…";
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const { latitude: lat, longitude: lng } = pos.coords;
+      map.setView([lat, lng], 11, { animate: true });
+      this.textContent = "Location detected ✓";
+      this.classList.add("active");
+      // Sort results by proximity (optional future enhancement)
+    },
+    () => {
+      this.textContent = "Location unavailable";
+    }
+  );
+});
+
+// ── INITIAL RENDER ──
+render();
+</script>
+</body>
+</html>
