@@ -473,9 +473,15 @@ const gBadge = g=>`<span class="badge ${g==="coed"?"badge-coed":g==="f"?"badge-f
 const pBadge = p=>p===0?`<span class="badge badge-free">Free</span>`:`<span class="badge badge-paid">$${p}/session</span>`;
 const grBadge= g=>`<span class="badge ${g==="public"?"badge-public":"badge-private"}">${grLabel(g)}</span>`;
 
-// MAP
-map = L.map('map',{zoomControl:true}).setView([35.5,-79.4],7);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',subdomains:'abcd',maxZoom:19}).addTo(map);
+// ─── Detect mode: are we loading the booking page in a new tab? ───
+const isBookingTab = window.location.hash.startsWith("#book-");
+const bookingCourtId = isBookingTab ? parseInt(window.location.hash.replace("#book-","")) : null;
+
+// MAP — only initialize if we're on the map page
+if (!isBookingTab) {
+  map = L.map('map',{zoomControl:true}).setView([35.5,-79.4],7);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',subdomains:'abcd',maxZoom:19}).addTo(map);
+}
 
 function makeIcon(active,sel,free){
   const color=!active?'#bbb':sel?'#0f3d8c':free?'#0f766e':'#1a4fa0', ring=sel?'#0f3d8c':'white', sz=sel?24:18;
@@ -544,46 +550,72 @@ function selectCourt(id,panTo){
   render();
 }
 
-courts.forEach(c=>{
-  const m=L.marker([c.lat,c.lng],{icon:makeIcon(true,false,c.price===0)}).addTo(map);
-  m.bindPopup(popupHtml(c),{maxWidth:265,minWidth:255});
-  m.on("click",()=>selectCourt(c.id,false));
-  m.on("popupclose",()=>{if(selectedId===c.id){selectedId=null;render();}});
-  markers[c.id]=m;
-});
-
-document.querySelectorAll(".chip").forEach(chip=>{
-  chip.addEventListener("click",()=>{
-    const f=chip.dataset.filter,v=chip.dataset.val;
-    document.querySelectorAll(`.chip[data-filter="${f}"]`).forEach(c=>c.classList.remove("active"));
-    chip.classList.add("active");filters[f]=v;render();
+// Only set up map markers and event listeners when on map page
+if (!isBookingTab) {
+  courts.forEach(c=>{
+    const m=L.marker([c.lat,c.lng],{icon:makeIcon(true,false,c.price===0)}).addTo(map);
+    m.bindPopup(popupHtml(c),{maxWidth:265,minWidth:255});
+    m.on("click",()=>selectCourt(c.id,false));
+    m.on("popupclose",()=>{if(selectedId===c.id){selectedId=null;render();}});
+    markers[c.id]=m;
   });
-});
-document.getElementById("price-range").addEventListener("input",function(){
-  filters.price=parseInt(this.value);
-  document.getElementById("price-val").textContent=filters.price>=100?"$100+":"$"+filters.price;render();
-});
-document.getElementById("search-input").addEventListener("input",function(){searchQuery=this.value.trim();render();});
-document.getElementById("use-loc-btn").addEventListener("click",function(){
-  if(!navigator.geolocation){alert("Geolocation not supported.");return;}
-  this.textContent="Detecting…";
-  navigator.geolocation.getCurrentPosition(pos=>{
-    map.setView([pos.coords.latitude,pos.coords.longitude],11,{animate:true});
-    this.textContent="Location detected ✓";this.classList.add("active");
-  },()=>{this.textContent="Location unavailable";});
-});
+
+  document.querySelectorAll(".chip").forEach(chip=>{
+    chip.addEventListener("click",()=>{
+      const f=chip.dataset.filter,v=chip.dataset.val;
+      document.querySelectorAll(`.chip[data-filter="${f}"]`).forEach(c=>c.classList.remove("active"));
+      chip.classList.add("active");filters[f]=v;render();
+    });
+  });
+  document.getElementById("price-range").addEventListener("input",function(){
+    filters.price=parseInt(this.value);
+    document.getElementById("price-val").textContent=filters.price>=100?"$100+":"$"+filters.price;render();
+  });
+  document.getElementById("search-input").addEventListener("input",function(){searchQuery=this.value.trim();render();});
+  document.getElementById("use-loc-btn").addEventListener("click",function(){
+    if(!navigator.geolocation){alert("Geolocation not supported.");return;}
+    this.textContent="Detecting…";
+    navigator.geolocation.getCurrentPosition(pos=>{
+      map.setView([pos.coords.latitude,pos.coords.longitude],11,{animate:true});
+      this.textContent="Location detected ✓";this.classList.add("active");
+    },()=>{this.textContent="Location unavailable";});
+  });
+}
 
 // ─── NAVIGATION ───
 function goHome(){
+  // If we're in a booking-only tab, go back means close (or go to base URL)
+  if (isBookingTab) {
+    // Try to close the tab; if blocked, navigate to the base URL
+    window.close();
+    // Fallback: if tab couldn't close (most browsers block window.close on tabs not opened by script),
+    // navigate to the map page in this same tab
+    setTimeout(()=>{ window.location.href = window.location.pathname; }, 100);
+    return;
+  }
   document.getElementById("map-page").classList.add("active");
   document.getElementById("booking-page").classList.remove("active");
   document.body.style.overflow="hidden";
-  setTimeout(()=>map.invalidateSize(),50);
+  setTimeout(()=>map && map.invalidateSize(),50);
 }
 
+// ─── Open booking in a new tab ───
 function goBooking(courtId){
-  const c=courts.find(x=>x.id===courtId);if(!c)return;
-  map.closePopup();_court=c;
+  // Open a new tab pointing at this same page with a hash that tells it which court to load
+  const url = window.location.pathname + "#book-" + courtId;
+  window.open(url, "_blank");
+}
+
+// ─── Render the booking page (used both by the new-tab path and standalone) ───
+function showBookingFor(courtId){
+  const c=courts.find(x=>x.id===courtId);
+  if(!c){
+    // Invalid court id — fall back to map view
+    document.getElementById("booking-page").classList.remove("active");
+    document.getElementById("map-page").classList.add("active");
+    return;
+  }
+  _court=c;
 
   document.getElementById("csb-name").textContent=c.name;
   document.getElementById("csb-city").textContent=c.city+", NC";
@@ -613,6 +645,9 @@ function goBooking(courtId){
   document.getElementById("booking-page").classList.add("active");
   document.getElementById("booking-page").querySelector(".booking-body").scrollTop=0;
   document.body.style.overflow="hidden";
+
+  // Update the page title so the new tab is identifiable
+  document.title = "Reserve: " + c.name;
 }
 
 function updateSummary(){
@@ -665,7 +700,14 @@ function closeConfirm(){
   goHome();
 }
 
-render();
+// ─── Initial routing based on URL hash ───
+if (isBookingTab && bookingCourtId) {
+  // We loaded directly into a booking tab — show that court's booking form
+  showBookingFor(bookingCourtId);
+} else {
+  // Normal map-first load
+  render();
+}
 </script>
 </body>
 </html>
